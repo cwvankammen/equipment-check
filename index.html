@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Equipment Verification - One at a Time</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        .setup-screen, .vehicle-screen, .comments-screen {
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .vehicle-screen, .comments-screen { display: none; }
+
+        .setup-screen h2, .vehicle-screen h2, .comments-screen h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 1.5em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+            font-size: 1em;
+        }
+
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        textarea { min-height: 100px; resize: vertical; }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .start-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 40px;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Photo upload */
+        .photo-upload {
+            border: 2px dashed #c3c9f5;
+            border-radius: 10px;
+            padding: 18px;
+            text-align: center;
+            background: #f6f7ff;
+            cursor: pointer;
+            color: #667eea;
+            font-weight: 600;
+        }
+        .photo-input { display: none; }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .photo-thumb {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 1;
+            border: 2px solid #e0e0e0;
+        }
+        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-remove {
+            position: absolute;
+            top: 4px; right: 4px;
+            background: rgba(220,53,69,0.92);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px; height: 24px;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .toggle-btn {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            color: #555;
+            transition: all 0.2s ease;
+        }
+        .toggle-btn.active-yes { background: #28a745; color: white; border-color: #28a745; }
+        .toggle-btn.active-no { background: #ff6b6b; color: white; border-color: #ff6b6b; }
+
+        .verification-screen {
+            padding: 40px 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .progress-container { margin-bottom: 30px; }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+        }
+
+        .progress-text { color: #666; font-size: 0.9em; }
+
+        .item-category {
+            color: #764ba2;
+            font-size: 0.8em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .item-number {
+            color: #667eea;
+            font-size: 0.9em;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .item-name {
+            font-size: 2.2em;
+            color: #333;
+            margin-bottom: 30px;
+            font-weight: 700;
+            word-break: break-word;
+        }
+
+        .item-container {
+            background: #f8f9fa;
+            padding: 40px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            border: 3px solid #e0e0e0;
+        }
+
+        .question {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 25px;
+            font-weight: 500;
+        }
+
+        .quantity-section, .working-section, .issue-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .quantity-label {
+            color: #666;
+            font-size: 0.95em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .quantity-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .quantity-input {
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1.2em;
+            text-align: center;
+            width: 120px;
+            transition: border-color 0.3s ease;
+        }
+
+        .quantity-input:focus { outline: none; border-color: #667eea; }
+
+        .unit-fixed {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #764ba2;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-yes { background: #28a745; color: white; }
+        .btn-yes:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(40, 167, 69, 0.3); }
+        .btn-no { background: #ff6b6b; color: white; }
+        .btn-no:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3); }
+        .btn-skip { background: #ffc107; color: #333; font-weight: 600; }
+        .btn-skip:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 193, 7, 0.3); }
+
+        .completion-screen {
+            padding: 40px 30px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-icon { font-size: 4em; margin-bottom: 20px; }
+
+        .completion-screen h2 { color: #28a745; font-size: 2em; margin-bottom: 15px; }
+
+        .completion-details {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 25px 0;
+            text-align: left;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .detail-row:last-child { border-bottom: none; }
+        .detail-label { color: #666; font-weight: 600; }
+        .detail-value { color: #333; font-weight: 700; }
+
+        .summary-list {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+        }
+
+        .summary-item {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .summary-item:last-child { border-bottom: none; }
+        .summary-item.has { color: #28a745; }
+        .summary-item.missing { color: #ff6b6b; }
+        .summary-item.broken { color: #d39e00; }
+        .summary-item .issue-note { display:block; color:#a06800; font-size:0.85em; margin-left:18px; }
+
+        .btn-new-team {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .btn-new-team:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3); }
+
+        .btn-download {
+            background: #17a2b8;
+            color: white;
+            margin-top: 15px;
+            width: 100%;
+        }
+        .btn-download:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(23, 162, 184, 0.3); }
+
+        .hint { font-size: 0.85em; color: #888; margin-top: 6px; }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.5em; }
+            .item-name { font-size: 1.6em; }
+            .button-group { flex-direction: column; }
+            .btn { padding: 12px; font-size: 1em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ Equipment Check</h1>
+            <p>One item at a time</p>
+        </div>
+
+        <!-- Setup Screen -->
+        <div class="setup-screen" id="setupScreen">
+            <h2>Let's Get Started</h2>
+
+            <div class="form-group">
+                <label for="teamName">Team Lead Name *</label>
+                <input type="text" id="teamName" placeholder="Your name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="date">Date *</label>
+                <input type="date" id="date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="vehicle">Truck/Vehicle *</label>
+                <input type="text" id="vehicle" placeholder="e.g., Huntermobile #1" required>
+            </div>
+
+            <button class="start-btn" onclick="goToVehicle()">Next: Vehicle Inspection</button>
+        </div>
+
+        <!-- Vehicle Inspection Screen -->
+        <div class="vehicle-screen" id="vehicleScreen">
+            <h2>🚚 Vehicle Inspection</h2>
+
+            <div class="form-group">
+                <label for="mileage">Current Mileage *</label>
+                <input type="number" id="mileage" min="0" placeholder="e.g., 84231" required>
+            </div>
+
+            <div class="form-group">
+                <label>Gas Card in the vehicle? *</label>
+                <div class="toggle-group">
+                    <button type="button" class="toggle-btn" id="gasYes" onclick="setGasCard(true)">✓ Yes</button>
+                    <button type="button" class="toggle-btn" id="gasNo" onclick="setGasCard(false)">✗ No</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Truck Photos</label>
+                <label class="photo-upload" for="truckPhotoInput">📷 Tap to photograph the truck (inside organized, outside, any damage)</label>
+                <input type="file" id="truckPhotoInput" class="photo-input" accept="image/*" capture="environment" onchange="handlePhotos(event,'truck')">
+                <p class="hint">Tap once per photo — take as many as you need; they'll stack up below.</p>
+                <div class="photo-grid" id="truckPhotoGrid"></div>
+            </div>
+
+            <div class="form-group">
+                <label>Fogger Photos</label>
+                <label class="photo-upload" for="foggerPhotoInput">📷 Tap to photograph the fogger / sprayer (overall + any issues)</label>
+                <input type="file" id="foggerPhotoInput" class="photo-input" accept="image/*" capture="environment" onchange="handlePhotos(event,'fogger')">
+                <p class="hint">Tap once per photo — take as many as you need.</p>
+                <div class="photo-grid" id="foggerPhotoGrid"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="maintenance">Maintenance Issues (leave blank if none)</label>
+                <textarea id="maintenance" placeholder="e.g., Check engine light on, passenger tire low, wiper blade torn..."></textarea>
+            </div>
+
+            <button class="start-btn" onclick="startVerification()">Start Equipment Check</button>
+        </div>
+
+        <!-- Verification Screen -->
+        <div class="verification-screen" id="verificationScreen">
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">1 of 37</div>
+            </div>
+
+            <div class="item-category" id="itemCategory"></div>
+            <div class="item-number" id="itemNumber">Item 1 of 37</div>
+
+            <div class="item-container">
+                <div class="item-name" id="itemName">Loading...</div>
+                <div class="question" id="mainQuestion">Do you have this item in the truck?</div>
+
+                <div class="quantity-section" id="quantitySection" style="display: none;">
+                    <span class="quantity-label">How many?</span>
+                    <div class="quantity-row">
+                        <input type="number" id="quantityInput" class="quantity-input" min="1" placeholder="1" value="1">
+                        <span class="unit-fixed" id="unitFixed">units</span>
+                    </div>
+                </div>
+
+                <div class="working-section" id="workingSection" style="display: none;">
+                    <span class="quantity-label">Is it working properly?</span>
+                    <div class="toggle-group">
+                        <button type="button" class="btn btn-yes" onclick="confirmWorking(true)">✓ Yes, Works</button>
+                        <button type="button" class="btn btn-no" onclick="confirmWorking(false)">✗ Not Working</button>
+                    </div>
+                </div>
+
+                <div class="issue-section" id="issueSection" style="display: none;">
+                    <span class="quantity-label">What's wrong with it?</span>
+                    <textarea id="issueInput" placeholder="Describe the problem (e.g., won't prime, pump leaks, gauge stuck...)"></textarea>
+                </div>
+            </div>
+
+            <div class="button-group" id="initialButtons">
+                <button class="btn btn-yes" onclick="showQuantityInput()">✓ Yes, I Have It</button>
+                <button class="btn btn-no" onclick="confirmDontHave()">✗ Don't Have It</button>
+            </div>
+
+            <div class="button-group" id="quantityButtons" style="display: none;">
+                <button class="btn btn-yes" onclick="confirmHave()">✓ Confirm Quantity</button>
+                <button class="btn btn-no" onclick="resetToInitial()">← Go Back</button>
+            </div>
+
+            <div class="button-group" id="issueButtons" style="display: none;">
+                <button class="btn btn-yes" onclick="saveIssue()">✓ Save & Continue</button>
+            </div>
+
+            <button class="btn btn-skip" id="skipButton" onclick="skipItem()">Skip This Item</button>
+        </div>
+
+        <!-- Comments Screen -->
+        <div class="comments-screen" id="commentsScreen">
+            <h2>📝 Anything Else?</h2>
+            <div class="form-group">
+                <label for="comments">Comments (optional)</label>
+                <textarea id="comments" placeholder="Notes for the office, things you need restocked, reminders..."></textarea>
+            </div>
+            <button class="start-btn" onclick="showCompletion()">Finish & Review</button>
+        </div>
+
+        <!-- Completion Screen -->
+        <div class="completion-screen" id="completionScreen">
+            <div class="success-icon">✓</div>
+            <h2>Equipment Check Complete!</h2>
+
+            <div class="completion-details">
+                <div class="detail-row">
+                    <span class="detail-label">Team Lead:</span>
+                    <span class="detail-value" id="finalTeamName">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Vehicle:</span>
+                    <span class="detail-value" id="finalVehicle">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Date:</span>
+                    <span class="detail-value" id="finalDate">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Mileage:</span>
+                    <span class="detail-value" id="finalMileage">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Gas Card:</span>
+                    <span class="detail-value" id="finalGasCard">-</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Items in Truck:</span>
+                    <span class="detail-value" id="finalCount">-</span>
+                </div>
+            </div>
+
+            <h3 style="color: #333; margin-top: 25px; margin-bottom: 15px;">Summary</h3>
+            <div class="summary-list" id="summaryList"></div>
+
+            <button class="btn btn-download" onclick="generatePDF()">📄 Download PDF Report (to share)</button>
+            <p class="hint">Tip: after it downloads, use your phone's Share button to send it via Teams or text.</p>
+            <button class="btn btn-new-team" onclick="startNewSession()">✓ Start Next Team</button>
+        </div>
+    </div>
+
+    <script>
+        // Each item: name, category, unit (locked), check = true if equipment that can be "working/not working"
+        const equipmentList = [
+            // Pest Control Products
+            { name: "Eco Via",                category: "Pest Control Products", unit: "bottles",    check: false },
+            { name: "Proflex",                category: "Pest Control Products", unit: "bottles",    check: false },
+            { name: "Alpine WSG",             category: "Pest Control Products", unit: "bags",       check: false },
+            { name: "Sticker product",        category: "Pest Control Products", unit: "bottles",    check: false },
+            { name: "Mosquito dunks",         category: "Pest Control Products", unit: "buckets",    check: false },
+            { name: "Bifen LP",               category: "Pest Control Products", unit: "bags",       check: false },
+            { name: "Bifen IT",               category: "Pest Control Products", unit: "bottles",    check: false },
+            { name: "Dusting powder",         category: "Pest Control Products", unit: "containers", check: false },
+            { name: "Ant Bait",               category: "Pest Control Products", unit: "tubes",      check: false },
+            { name: "Rodent Bait",            category: "Pest Control Products", unit: "buckets",    check: false },
+            { name: "Rodent Bait stations",   category: "Pest Control Products", unit: "units",      check: false },
+            // Equipment & Tools
+            { name: "Stihl SR450 sprayer",    category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "Stihl SR200 sprayer",    category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "FlowZone sprayer",       category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "FlowZone Mini sprayer",  category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "Measuring cup",          category: "Equipment & Tools",     unit: "units",      check: false },
+            { name: "Gas can",                category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "Webster pole",           category: "Equipment & Tools",     unit: "units",      check: true },
+            { name: "Webster duster",         category: "Equipment & Tools",     unit: "units",      check: true },
+            // Safety & PPE
+            { name: "First Aid Kit",          category: "Safety & PPE",          unit: "kits",       check: false },
+            { name: "Fire Extinguisher",      category: "Safety & PPE",          unit: "units",      check: true },
+            { name: "Gloves",                 category: "Safety & PPE",          unit: "pairs",      check: false },
+            { name: "Respirator",             category: "Safety & PPE",          unit: "units",      check: true },
+            { name: "Eye protection",         category: "Safety & PPE",          unit: "units",      check: false },
+            { name: "Ear protection",         category: "Safety & PPE",          unit: "units",      check: false },
+            { name: "Spill Kit",              category: "Safety & PPE",          unit: "kits",       check: false },
+            { name: "Shoe covers",            category: "Safety & PPE",          unit: "pairs",      check: false },
+            // Sales Products
+            { name: "Diapause leave-behind",  category: "Sales Products",        unit: "units",      check: false },
+            { name: "Door hangers",           category: "Sales Products",        unit: "units",      check: false },
+            { name: "Yard signs",             category: "Sales Products",        unit: "units",      check: false },
+            { name: "Perimeter Pest inspection list", category: "Sales Products", unit: "units",     check: false },
+            { name: "Pest inspection flags",  category: "Sales Products",        unit: "units",      check: false },
+            { name: "Lawn signs",             category: "Sales Products",        unit: "units",      check: false },
+            { name: "Google tap card",        category: "Sales Products",        unit: "units",      check: false },
+            // Service Products
+            { name: "5 gallon bucket filled with yard card stakes", category: "Service Products", unit: "buckets", check: false },
+            { name: "Yard cards",             category: "Service Products",      unit: "units",      check: false },
+            { name: "Binder",                 category: "Service Products",      unit: "units",      check: false }
+        ];
+
+        let currentItemIndex = 0;
+        let teamName = "", date = "", vehicle = "";
+        let mileage = "", gasCard = null, maintenance = "", comments = "";
+        let truckPhotos = [];   // { data, w, h }
+        let foggerPhotos = [];  // { data, w, h }
+        const photoSets = { truck: () => truckPhotos, fogger: () => foggerPhotos };
+        let results = [];
+        let pending = null; // holds in-progress item answer while asking "is it working?"
+
+        document.getElementById('date').valueAsDate = new Date();
+
+        function goToVehicle() {
+            teamName = document.getElementById('teamName').value.trim();
+            date = document.getElementById('date').value;
+            vehicle = document.getElementById('vehicle').value.trim();
+            if (!teamName || !date || !vehicle) { alert('Please fill in all fields'); return; }
+            document.getElementById('setupScreen').style.display = 'none';
+            document.getElementById('vehicleScreen').style.display = 'block';
+        }
+
+        function setGasCard(val) {
+            gasCard = val;
+            document.getElementById('gasYes').classList.toggle('active-yes', val === true);
+            document.getElementById('gasNo').classList.toggle('active-no', val === false);
+        }
+
+        // Resize/compress an image file to a JPEG data URL
+        function fileToScaledDataURL(file, maxDim) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let { width, height } = img;
+                        if (width > maxDim || height > maxDim) {
+                            const scale = maxDim / Math.max(width, height);
+                            width = Math.round(width * scale);
+                            height = Math.round(height * scale);
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = width; canvas.height = height;
+                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                        resolve({ data: canvas.toDataURL('image/jpeg', 0.7), w: width, h: height });
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handlePhotos(event, which) {
+            const files = Array.from(event.target.files || []);
+            const arr = photoSets[which]();
+            for (const f of files) {
+                arr.push(await fileToScaledDataURL(f, 1200));
+            }
+            event.target.value = '';
+            renderPhotos(which);
+        }
+
+        function renderPhotos(which) {
+            const grid = document.getElementById(which + 'PhotoGrid');
+            const arr = photoSets[which]();
+            grid.innerHTML = '';
+            arr.forEach((p, i) => {
+                const div = document.createElement('div');
+                div.className = 'photo-thumb';
+                div.innerHTML = `<img src="${p.data}" alt="${which} photo"><button class="photo-remove" onclick="removePhoto('${which}',${i})">×</button>`;
+                grid.appendChild(div);
+            });
+        }
+
+        function removePhoto(which, i) {
+            photoSets[which]().splice(i, 1);
+            renderPhotos(which);
+        }
+
+        function startVerification() {
+            mileage = document.getElementById('mileage').value;
+            maintenance = document.getElementById('maintenance').value.trim();
+            if (!mileage) { alert('Please enter the current mileage'); return; }
+            if (gasCard === null) { alert('Please answer the gas card question'); return; }
+
+            currentItemIndex = 0;
+            results = [];
+            document.getElementById('vehicleScreen').style.display = 'none';
+            document.getElementById('verificationScreen').style.display = 'block';
+            loadItem();
+        }
+
+        function loadItem() {
+            if (currentItemIndex >= equipmentList.length) { showComments(); return; }
+
+            const item = equipmentList[currentItemIndex];
+            pending = null;
+            document.getElementById('itemName').textContent = item.name;
+            document.getElementById('itemCategory').textContent = item.category;
+            document.getElementById('itemNumber').textContent = `Item ${currentItemIndex + 1} of ${equipmentList.length}`;
+            document.getElementById('unitFixed').textContent = item.unit;
+
+            const progress = (currentItemIndex / equipmentList.length) * 100;
+            document.getElementById('progressFill').style.width = progress + '%';
+            document.getElementById('progressText').textContent = `${currentItemIndex + 1} of ${equipmentList.length}`;
+
+            document.getElementById('quantityInput').value = '1';
+            document.getElementById('issueInput').value = '';
+            resetToInitial();
+        }
+
+        function resetToInitial() {
+            document.getElementById('initialButtons').style.display = 'flex';
+            document.getElementById('quantityButtons').style.display = 'none';
+            document.getElementById('issueButtons').style.display = 'none';
+            document.getElementById('quantitySection').style.display = 'none';
+            document.getElementById('workingSection').style.display = 'none';
+            document.getElementById('issueSection').style.display = 'none';
+            document.getElementById('mainQuestion').textContent = 'Do you have this item in the truck?';
+            document.getElementById('skipButton').style.display = 'block';
+        }
+
+        function showQuantityInput() {
+            document.getElementById('initialButtons').style.display = 'none';
+            document.getElementById('quantityButtons').style.display = 'flex';
+            document.getElementById('quantitySection').style.display = 'block';
+            document.getElementById('mainQuestion').textContent = 'How many do you have?';
+            document.getElementById('skipButton').style.display = 'none';
+            document.getElementById('quantityInput').focus();
+        }
+
+        function confirmHave() {
+            const quantity = document.getElementById('quantityInput').value;
+            if (!quantity || quantity < 1) { alert('Please enter a valid quantity (at least 1)'); return; }
+
+            const item = equipmentList[currentItemIndex];
+            pending = {
+                item: item.name, category: item.category, status: 'have',
+                quantity: quantity, unit: item.unit, working: null, issue: ''
+            };
+
+            if (item.check) {
+                // ask if it's working
+                document.getElementById('quantitySection').style.display = 'none';
+                document.getElementById('quantityButtons').style.display = 'none';
+                document.getElementById('workingSection').style.display = 'block';
+                document.getElementById('mainQuestion').textContent = 'Is it working?';
+            } else {
+                results.push(pending);
+                currentItemIndex++;
+                loadItem();
+            }
+        }
+
+        function confirmWorking(isWorking) {
+            pending.working = isWorking;
+            if (isWorking) {
+                results.push(pending);
+                currentItemIndex++;
+                loadItem();
+            } else {
+                document.getElementById('workingSection').style.display = 'none';
+                document.getElementById('issueSection').style.display = 'block';
+                document.getElementById('issueButtons').style.display = 'flex';
+                document.getElementById('mainQuestion').textContent = 'What needs fixing?';
+                document.getElementById('issueInput').focus();
+            }
+        }
+
+        function saveIssue() {
+            const issue = document.getElementById('issueInput').value.trim();
+            if (!issue) { alert('Please describe what is wrong, or note "unknown".'); return; }
+            pending.issue = issue;
+            results.push(pending);
+            currentItemIndex++;
+            loadItem();
+        }
+
+        function confirmDontHave() {
+            const item = equipmentList[currentItemIndex];
+            results.push({ item: item.name, category: item.category, status: 'dont_have', quantity: 0, unit: item.unit, working: null, issue: '' });
+            currentItemIndex++;
+            loadItem();
+        }
+
+        function skipItem() {
+            const item = equipmentList[currentItemIndex];
+            results.push({ item: item.name, category: item.category, status: 'skipped', quantity: 0, unit: item.unit, working: null, issue: '' });
+            currentItemIndex++;
+            loadItem();
+        }
+
+        function showComments() {
+            document.getElementById('verificationScreen').style.display = 'none';
+            document.getElementById('commentsScreen').style.display = 'block';
+        }
+
+        function showCompletion() {
+            comments = document.getElementById('comments').value.trim();
+            document.getElementById('commentsScreen').style.display = 'none';
+            document.getElementById('verificationScreen').style.display = 'none';
+            document.getElementById('completionScreen').style.display = 'block';
+
+            document.getElementById('finalTeamName').textContent = teamName;
+            document.getElementById('finalVehicle').textContent = vehicle;
+            document.getElementById('finalDate').textContent = date;
+            document.getElementById('finalMileage').textContent = mileage ? `${mileage} mi` : '-';
+            document.getElementById('finalGasCard').textContent = gasCard ? 'Present ✓' : 'MISSING ✗';
+
+            const hasCount = results.filter(r => r.status === 'have').length;
+            document.getElementById('finalCount').textContent = `${hasCount} of ${results.length}`;
+
+            let summaryHTML = '';
+            results.forEach(r => {
+                if (r.status === 'have' && r.working === false) {
+                    summaryHTML += `<div class="summary-item broken">⚠ ${r.item} (${r.quantity} ${r.unit}) — NOT WORKING<span class="issue-note">↳ ${escapeHtml(r.issue)}</span></div>`;
+                } else if (r.status === 'have') {
+                    const work = r.working === true ? ' ✓ working' : '';
+                    summaryHTML += `<div class="summary-item has">✓ ${r.item} (${r.quantity} ${r.unit})${work}</div>`;
+                } else if (r.status === 'dont_have') {
+                    summaryHTML += `<div class="summary-item missing">✗ ${r.item} — MISSING</div>`;
+                } else {
+                    summaryHTML += `<div class="summary-item">– ${r.item} (skipped)</div>`;
+                }
+            });
+            document.getElementById('summaryList').innerHTML = summaryHTML;
+        }
+
+        function escapeHtml(s) {
+            return (s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        }
+
+        function startNewSession() {
+            document.getElementById('setupScreen').style.display = 'block';
+            document.getElementById('vehicleScreen').style.display = 'none';
+            document.getElementById('verificationScreen').style.display = 'none';
+            document.getElementById('commentsScreen').style.display = 'none';
+            document.getElementById('completionScreen').style.display = 'none';
+
+            document.getElementById('teamName').value = '';
+            document.getElementById('vehicle').value = '';
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('mileage').value = '';
+            document.getElementById('maintenance').value = '';
+            document.getElementById('comments').value = '';
+            document.getElementById('gasYes').classList.remove('active-yes');
+            document.getElementById('gasNo').classList.remove('active-no');
+            gasCard = null;
+            truckPhotos = [];
+            foggerPhotos = [];
+            renderPhotos('truck');
+            renderPhotos('fogger');
+        }
+
+        function generatePDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+            const margin = 40;
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const maxW = pageW - margin * 2;
+            let y = margin;
+
+            function ensure(h) { if (y + h > pageH - margin) { doc.addPage(); y = margin; } }
+            function text(str, size, style, color) {
+                doc.setFont('helvetica', style || 'normal');
+                doc.setFontSize(size || 11);
+                doc.setTextColor(color || '#222222');
+                const lines = doc.splitTextToSize(str, maxW);
+                const lh = (size || 11) * 1.35;
+                lines.forEach(ln => { ensure(lh); doc.text(ln, margin, y); y += lh; });
+            }
+            function gap(h) { y += (h || 8); }
+            function rule() { ensure(12); doc.setDrawColor('#cccccc'); doc.line(margin, y, pageW - margin, y); y += 12; }
+
+            text('Mosquito Hunters of Chicago', 16, 'bold', '#5b3a92');
+            text('Equipment Check Report', 13, 'bold', '#333333');
+            gap(4);
+            text(`Team Lead: ${teamName}`, 11);
+            text(`Vehicle: ${vehicle}`, 11);
+            text(`Date: ${date}`, 11);
+            rule();
+
+            text('VEHICLE INSPECTION', 12, 'bold', '#5b3a92');
+            text(`Mileage: ${mileage || '-'} mi`, 11);
+            text(`Gas Card: ${gasCard ? 'Present' : 'MISSING'}`, 11, gasCard ? 'normal' : 'bold', gasCard ? '#222222' : '#c0392b');
+            text(`Maintenance Issues: ${maintenance || 'None reported'}`, 11);
+            gap(4);
+
+            function addPhotos(label, arr) {
+                if (!arr.length) return;
+                text(label, 11, 'bold');
+                gap(2);
+                arr.forEach(p => {
+                    const dispW = Math.min(maxW, 320);
+                    const dispH = p.h * (dispW / p.w);
+                    ensure(dispH + 10);
+                    doc.addImage(p.data, 'JPEG', margin, y, dispW, dispH);
+                    y += dispH + 10;
+                });
+            }
+            addPhotos('Truck Photos:', truckPhotos);
+            addPhotos('Fogger Photos:', foggerPhotos);
+            rule();
+
+            const broken = results.filter(r => r.status === 'have' && r.working === false);
+            const missing = results.filter(r => r.status === 'dont_have');
+            const have = results.filter(r => r.status === 'have');
+            const skipped = results.filter(r => r.status === 'skipped');
+
+            if (broken.length) {
+                text(`⚠ NOT WORKING (${broken.length})`, 12, 'bold', '#c0392b');
+                broken.forEach(r => {
+                    text(`• ${r.item} (${r.quantity} ${r.unit}) — ${r.issue}`, 11, 'normal', '#a93226');
+                });
+                gap(4);
+            }
+
+            text(`MISSING ITEMS (${missing.length})`, 12, 'bold', '#c0392b');
+            if (missing.length) missing.forEach(r => text(`• ${r.item}`, 11, 'normal', '#a93226'));
+            else text('None — all accounted for.', 11);
+            gap(6);
+
+            text(`ITEMS IN TRUCK (${have.length} of ${results.length})`, 12, 'bold', '#27632a');
+            have.forEach(r => {
+                let extra = '';
+                if (r.working === true) extra = ' [working]';
+                else if (r.working === false) extra = ' [NOT WORKING]';
+                text(`• ${r.item} — ${r.quantity} ${r.unit}${extra}`, 11);
+            });
+            gap(4);
+
+            if (skipped.length) {
+                text(`SKIPPED (${skipped.length})`, 12, 'bold', '#777777');
+                skipped.forEach(r => text(`• ${r.item}`, 11, 'normal', '#777777'));
+                gap(4);
+            }
+
+            rule();
+            text('COMMENTS', 12, 'bold', '#5b3a92');
+            text(comments || 'None.', 11);
+
+            // Machine-readable data block (for the office — do not edit).
+            // Compiled automatically into the restock spreadsheet.
+            gap(10); rule();
+            text('--- DATA (office use — do not edit) ---', 8, 'normal', '#999999');
+            const clean = s => String(s == null ? '' : s).replace(/[\r\n|]/g, ' ').trim();
+            const dataLines = [];
+            dataLines.push(`#MH-EQ-CHECK v1`);
+            dataLines.push(`TEAM_LEAD=${clean(teamName)}`);
+            dataLines.push(`VEHICLE=${clean(vehicle)}`);
+            dataLines.push(`DATE=${clean(date)}`);
+            dataLines.push(`MILEAGE=${clean(mileage)}`);
+            dataLines.push(`GAS_CARD=${gasCard ? 'present' : 'missing'}`);
+            dataLines.push(`MAINTENANCE=${clean(maintenance) || 'none'}`);
+            dataLines.push(`TRUCK_PHOTOS=${truckPhotos.length}`);
+            dataLines.push(`FOGGER_PHOTOS=${foggerPhotos.length}`);
+            results.forEach(r => {
+                const st = r.status === 'have' ? 'HAVE' : (r.status === 'dont_have' ? 'MISSING' : 'SKIPPED');
+                const wk = r.working === true ? 'working' : (r.working === false ? 'broken' : 'na');
+                dataLines.push(`ITEM|${clean(r.item)}|${st}|${r.quantity || 0}|${clean(r.unit)}|${wk}|${clean(r.issue)}`);
+            });
+            dataLines.push(`COMMENTS=${clean(comments) || 'none'}`);
+            dataLines.push(`#END`);
+            doc.setFont('courier', 'normal'); doc.setFontSize(7); doc.setTextColor('#666666');
+            dataLines.forEach(ln => {
+                const wrapped = doc.splitTextToSize(ln, maxW);
+                wrapped.forEach(w => { ensure(9); doc.text(w, margin, y); y += 9; });
+            });
+
+            const safeName = (teamName || 'Team').replace(/[^a-z0-9]/gi, '_');
+            doc.save(`Equipment_Report_${safeName}_${date}.pdf`);
+        }
+    </script>
+</body>
+</html>
