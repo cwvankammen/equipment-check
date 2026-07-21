@@ -444,6 +444,14 @@
             </div>
 
             <div class="form-group">
+                <label>I-Pass Photo *</label>
+                <label class="photo-upload" for="ipassPhotoInput">📷 Tap to photograph your I-Pass transponder</label>
+                <input type="file" id="ipassPhotoInput" class="photo-input" accept="image/*" capture="environment" onchange="handlePhotos(event,'ipass')">
+                <p class="hint">Get a clear, close-up shot so the transponder number on the label is fully readable.</p>
+                <div class="photo-grid" id="ipassPhotoGrid"></div>
+            </div>
+
+            <div class="form-group">
                 <label for="maintenance">Maintenance Issues (leave blank if none)</label>
                 <textarea id="maintenance" placeholder="e.g., Check engine light on, passenger tire low, wiper blade torn..."></textarea>
             </div>
@@ -618,7 +626,8 @@
         let mileage = "", gasCard = null, maintenance = "", comments = "";
         let truckPhotos = [];   // { data, w, h }
         let foggerPhotos = [];  // { data, w, h }
-        const photoSets = { truck: () => truckPhotos, fogger: () => foggerPhotos };
+        let ipassPhotos = [];   // { data, w, h }
+        const photoSets = { truck: () => truckPhotos, fogger: () => foggerPhotos, ipass: () => ipassPhotos };
         let results = [];
         let pending = null; // holds in-progress item answer while asking "is it working?"
 
@@ -695,6 +704,7 @@
             maintenance = document.getElementById('maintenance').value.trim();
             if (!mileage) { alert('Please enter the current mileage'); return; }
             if (gasCard === null) { alert('Please answer the gas card question'); return; }
+            if (!ipassPhotos.length) { alert('Please take a photo of your I-Pass transponder (number must be readable)'); return; }
 
             currentItemIndex = 0;
             results = [];
@@ -864,6 +874,7 @@
             gasCard = null;
             truckPhotos = [];
             foggerPhotos = [];
+            ipassPhotos = [];
             renderPhotos('truck');
             renderPhotos('fogger');
         }
@@ -917,6 +928,7 @@
             }
             addPhotos('Truck Photos:', truckPhotos);
             addPhotos('Fogger Photos:', foggerPhotos);
+            addPhotos('I-Pass Photos:', ipassPhotos);
             rule();
 
             const broken = results.filter(r => r.status === 'have' && r.working === false);
@@ -971,6 +983,7 @@
             dataLines.push(`MAINTENANCE=${clean(maintenance) || 'none'}`);
             dataLines.push(`TRUCK_PHOTOS=${truckPhotos.length}`);
             dataLines.push(`FOGGER_PHOTOS=${foggerPhotos.length}`);
+            dataLines.push(`IPASS_PHOTOS=${ipassPhotos.length}`);
             results.forEach(r => {
                 const st = r.status === 'have' ? 'HAVE' : (r.status === 'dont_have' ? 'MISSING' : 'SKIPPED');
                 const wk = r.working === true ? 'working' : (r.working === false ? 'broken' : 'na');
